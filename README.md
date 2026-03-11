@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## QR Code For Everyone
+
+A beautiful QR code generator with live preview and customization:
+
+- **Paste any link/text**
+- **Customize**: dots, corners, colors, gradient, background transparency
+- **Add a logo** (upload an image)
+- **Download** as PNG / JPEG / WEBP / SVG
 
 ## Getting Started
 
-First, run the development server:
+Install deps and run the dev server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy to Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Option A: Deploy via Vercel Dashboard (recommended)
 
-## Learn More
+- Push this project to GitHub (or GitLab/Bitbucket)
+- In Vercel, click **Add New → Project**
+- Import the repo
+- Framework preset: **Next.js**
+- Build command: `next build` (default)
+- Output: (default)
+- Deploy
 
-To learn more about Next.js, take a look at the following resources:
+### Option B: Deploy via Vercel CLI
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm i -g vercel
+vercel
+vercel --prod
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Notes:
 
-## Deploy on Vercel
+- **No environment variables are required** for this app.
+- The Vercel project display name can be set to **“QR Code For Everyone”** in Vercel’s project settings (the repo/folder name can stay `qr-code-for-everyone`).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Tech
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js (App Router) + TypeScript
+- Tailwind CSS
+- `qr-code-styling`
