@@ -144,7 +144,7 @@ export function QrCodeStudio() {
   const [downloadExt, setDownloadExt] = useState<FileExtension>("png");
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
-  type SheetSnap = "hidden" | "mini" | "half" | "full";
+  type SheetSnap = "mini" | "half" | "full";
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("half");
   const dragRef = useRef<{
     startY: number;
@@ -168,13 +168,11 @@ export function QrCodeStudio() {
   const snapToOffset = (snap: SheetSnap) => {
     const m = getSheetMetrics();
     const visible =
-      snap === "hidden"
-        ? m.handle
-        : snap === "mini"
-          ? m.miniH
-          : snap === "half"
-            ? m.halfH
-            : m.fullH;
+      snap === "mini"
+        ? m.miniH
+        : snap === "half"
+          ? m.halfH
+          : m.fullH;
     return Math.max(0, m.vh - visible);
   };
 
@@ -194,7 +192,6 @@ export function QrCodeStudio() {
     const clampOffset = Math.min(Math.max(offset, 0), m.vh - m.handle);
     const visible = m.vh - clampOffset;
     const candidates: Array<{ snap: SheetSnap; visible: number }> = [
-      { snap: "hidden", visible: m.handle },
       { snap: "mini", visible: m.miniH },
       { snap: "half", visible: m.halfH },
       { snap: "full", visible: m.fullH },
@@ -1041,11 +1038,11 @@ export function QrCodeStudio() {
                 <button
                   type="button"
                   onClick={() =>
-                    setSheetSnap((s) => (s === "hidden" ? "half" : "hidden"))
+                    setSheetSnap((s) => (s === "mini" ? "half" : "mini"))
                   }
                   className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/10"
                 >
-                  {sheetSnap === "hidden" ? "Show" : "Hide"}
+                  {sheetSnap === "mini" ? "Expand" : "Collapse"}
                 </button>
                 <button
                   type="button"
@@ -1060,7 +1057,10 @@ export function QrCodeStudio() {
           </div>
 
           <div className="px-4 pb-5">
-            <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
+            <div
+              className="rounded-3xl border border-white/10 bg-black/30 p-4"
+              onClick={() => setSheetSnap("full")}
+            >
               <div className="flex items-center justify-center">
                 <div
                   ref={mountMobileRef}
