@@ -68,7 +68,7 @@ const ERROR_LEVELS: Array<{ label: string; value: ErrorCorrectionLevel }> = [
 ];
 
 function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
+  return Math.min(max, Math.max(min, n)); //Test
 }
 
 function SelectChevron() {
@@ -170,12 +170,11 @@ export function QrCodeStudio() {
 
   const getSheetMetrics = () => {
     if (typeof window === "undefined")
-      return { vh: 400, handle: 56, miniH: 200, halfH: 192, fullH: 368 };
-    const vh =
-      window.visualViewport?.height ?? window.innerHeight ?? 400;
-    const handle = 56; // px visible when hidden
-    const miniH = Math.round(vh * 0.5);
-    const halfH = Math.round(vh * 0.48);
+      return { vh: 400, handle: 56, miniH: 140, halfH: 200, fullH: 360 };
+    const vh = window.visualViewport?.height ?? window.innerHeight ?? 400;
+    const handle = 56; // px visible when collapsed
+    const miniH = Math.round(vh * 0.35); // ~35% of screen
+    const halfH = Math.round(vh * 0.5);
     const fullH = Math.round(vh * 0.92);
     return { vh, handle, miniH, halfH, fullH };
   };
@@ -409,7 +408,7 @@ export function QrCodeStudio() {
       </header>
 
       <div className="grid h-[100svh] grid-cols-1 gap-0 overflow-hidden lg:h-auto lg:grid-cols-[1.1fr_.9fr] lg:gap-6 lg:overflow-visible">
-        <section className="h-[100svh] overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur lg:h-auto lg:p-6">
+        <section className="h-[100svh] overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-white/5 p-5 pb-32 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur lg:h-auto lg:p-6">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-white">Design</h2>
             <button
@@ -1132,9 +1131,9 @@ export function QrCodeStudio() {
             </div>
           </div>
 
-          <div className="relative flex-1 min-h-0 overflow-y-auto px-4 pb-5">
+          <div className="relative flex-1 min-h-0 overflow-y-auto px-4 pb-7">
             <div className="relative rounded-3xl border border-white/10 bg-black/30 p-4">
-              {/* Tap overlay: tap anywhere on preview to expand to full */}
+              {/*Tap overlay: tap anywhere on preview to expand to full */}
               <button
                 type="button"
                 className="absolute inset-0 z-10 rounded-3xl cursor-default focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-inset"
@@ -1163,7 +1162,7 @@ export function QrCodeStudio() {
             </div>
 
             {/* Download fields always visible; scroll with sheet content (no show/hide toggle) */}
-            <div className="mt-3 grid grid-cols-1 gap-3 pb-2">
+            <div className="mt-3 grid grid-cols-1 gap-3 pb-4">
               <div>
                 <label
                   htmlFor={dlNameId}
