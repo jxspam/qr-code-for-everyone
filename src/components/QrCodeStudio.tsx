@@ -106,8 +106,10 @@ function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 }
 
 export function QrCodeStudio() {
-  const mountRef = useRef<HTMLDivElement | null>(null);
+  const mountDesktopRef = useRef<HTMLDivElement | null>(null);
+  const mountMobileRef = useRef<HTMLDivElement | null>(null);
   const qrRef = useRef<QRCodeStyling | null>(null);
+  const studioRef = useRef<HTMLDivElement | null>(null);
 
   const [data, setData] = useState("https://example.com");
   const [size, setSize] = useState(320);
@@ -141,6 +143,72 @@ export function QrCodeStudio() {
   const [downloadName, setDownloadName] = useState("qr-code-for-everyone");
   const [downloadExt, setDownloadExt] = useState<FileExtension>("png");
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
+
+  type SheetSnap = "hidden" | "mini" | "half" | "full";
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("half");
+  const dragRef = useRef<{
+    startY: number;
+    startOffset: number;
+    active: boolean;
+    moved: boolean;
+  } | null>(null);
+
+  const getSheetMetrics = () => {
+    const root = studioRef.current;
+    const vh = root ? root.getBoundingClientRect().height : window.innerHeight;
+    const handle = 56; // px visible when hidden
+    const miniH = Math.round(vh * 0.15);
+    const halfH = Math.round(vh * 0.48);
+    const fullH = Math.round(vh * 0.92);
+    return { vh, handle, miniH, halfH, fullH };
+  };
+
+  const snapToOffset = (snap: SheetSnap) => {
+    const m = getSheetMetrics();
+    const visible =
+      snap === "hidden"
+        ? m.handle
+        : snap === "mini"
+          ? m.miniH
+          : snap === "half"
+            ? m.halfH
+            : m.fullH;
+    return Math.max(0, m.vh - visible);
+  };
+
+  const [sheetOffset, setSheetOffset] = useState<number>(0);
+
+  useEffect(() => {
+    // set initial offset + keep in sync on resize/orientation
+    const apply = () => setSheetOffset(snapToOffset(sheetSnap));
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetSnap]);
+
+  const commitSnapFromOffset = (offset: number) => {
+    const m = getSheetMetrics();
+    const clampOffset = Math.min(Math.max(offset, 0), m.vh - m.handle);
+    const visible = m.vh - clampOffset;
+    const candidates: Array<{ snap: SheetSnap; visible: number }> = [
+      { snap: "hidden", visible: m.handle },
+      { snap: "mini", visible: m.miniH },
+      { snap: "half", visible: m.halfH },
+      { snap: "full", visible: m.fullH },
+    ];
+    let best = candidates[0]!;
+    let bestDist = Infinity;
+    for (const c of candidates) {
+      const d = Math.abs(c.visible - visible);
+      if (d < bestDist) {
+        bestDist = d;
+        best = c;
+      }
+    }
+    setSheetSnap(best.snap);
+    setSheetOffset(snapToOffset(best.snap));
+  };
 
   const options: Options = useMemo(() => {
     const drawType: DrawType = "canvas";
@@ -209,17 +277,23 @@ export function QrCodeStudio() {
   ]);
 
   useEffect(() => {
-    if (!mountRef.current) return;
+    const isDesktop =
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1024px)").matches;
+    const mount = isDesktop ? mountDesktopRef.current : mountMobileRef.current;
+    if (!mount) return;
 
     if (!qrRef.current) {
       const qr = new QRCodeStyling(options);
       qrRef.current = qr;
-      mountRef.current.innerHTML = "";
-      qr.append(mountRef.current);
+      mount.innerHTML = "";
+      qr.append(mount);
       return;
     }
 
     qrRef.current.update(options);
+    mount.innerHTML = "";
+    qrRef.current.append(mount);
   }, [options]);
 
   const onUploadLogo = async (file: File | null) => {
@@ -276,23 +350,21 @@ export function QrCodeStudio() {
   const dlExtId = useId();
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6">
+    <div
+      ref={studioRef}
+      className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6"
+    >
       <header className="mb-10 flex flex-col gap-3">
-        <div className="inline-flex items-center gap-2 text-sm text-zinc-300">
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-            QR Code For Everyone
-          </span>
-          <span className="hidden text-zinc-400 md:inline">
-            Beautiful QR codes with live preview, logo, gradient, and downloads
-          </span>
-        </div>
-        <h1 className="text-balance text-3xl font-semibold tracking-tight text-white md:text-4xl">
-          Paste any link. Customize the style. Download instantly.
+        <h1 className="text-balance text-4xl font-semibold tracking-tight text-white md:text-6xl">
+          QR Code For Everyone
         </h1>
+        <p className="max-w-2xl text-sm text-zinc-300 md:text-base">
+          Paste any link. Customize the style. Download instantly.
+        </p>
       </header>
 
       <div className="grid h-[100svh] grid-cols-1 gap-0 overflow-hidden lg:h-auto lg:grid-cols-[1.1fr_.9fr] lg:gap-6 lg:overflow-visible">
-        <section className="h-[54svh] overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur lg:h-auto lg:p-6">
+        <section className="h-[100svh] overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur lg:h-auto lg:p-6">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-white">Design</h2>
             <button
@@ -801,7 +873,9 @@ export function QrCodeStudio() {
           </div>
         </section>
 
-        <aside className="relative h-[46svh] overflow-hidden rounded-t-3xl border border-white/10 bg-white/5 p-4 shadow-[0_-1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur lg:static lg:h-auto lg:overflow-visible lg:rounded-3xl lg:p-6 lg:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset]">
+        <aside
+          className="relative z-20 hidden lg:block rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur"
+        >
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-white">Preview</h2>
             <div className="flex items-center gap-2">
@@ -826,7 +900,7 @@ export function QrCodeStudio() {
           <div className="mt-4 rounded-3xl border border-white/10 bg-black/30 p-4 lg:mt-5 lg:p-5">
             <div className="flex items-center justify-center">
               <div
-                ref={mountRef}
+                ref={mountDesktopRef}
                 className="grid w-full max-w-[260px] place-items-center overflow-hidden rounded-2xl [&>canvas]:h-auto [&>canvas]:w-full [&>svg]:h-auto [&>svg]:w-full sm:max-w-[320px] lg:max-w-none"
               />
             </div>
@@ -903,6 +977,155 @@ export function QrCodeStudio() {
             </ul>
           </div>
         </aside>
+      </div>
+
+      {/* Mobile bottom sheet preview */}
+      <div className="lg:hidden">
+        <div
+          className="fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border border-white/10 bg-white/5 shadow-[0_-1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur"
+          style={{
+            transform: `translateY(${sheetOffset}px)`,
+            transition: dragRef.current?.active ? "none" : "transform 220ms ease",
+          }}
+        >
+          <div
+            className="px-4 pt-3"
+            onPointerDown={(e) => {
+              (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+              dragRef.current = {
+                startY: e.clientY,
+                startOffset: sheetOffset,
+                active: true,
+                moved: false,
+              };
+            }}
+            onPointerMove={(e) => {
+              if (!dragRef.current?.active) return;
+              const dy = e.clientY - dragRef.current.startY;
+              if (Math.abs(dy) > 2) dragRef.current.moved = true;
+              const m = getSheetMetrics();
+              const next = clamp(
+                dragRef.current.startOffset + dy,
+                0,
+                m.vh - m.handle,
+              );
+              setSheetOffset(next);
+            }}
+            onPointerUp={(e) => {
+              const d = dragRef.current;
+              dragRef.current = d ? { ...d, active: false } : null;
+              commitSnapFromOffset(sheetOffset);
+              (e.currentTarget as HTMLDivElement).releasePointerCapture(
+                e.pointerId,
+              );
+            }}
+            onPointerCancel={(e) => {
+              dragRef.current = null;
+              commitSnapFromOffset(sheetOffset);
+              (e.currentTarget as HTMLDivElement).releasePointerCapture(
+                e.pointerId,
+              );
+            }}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
+            <div className="flex items-center justify-between gap-3 pb-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-white">Preview</div>
+                <div className="text-xs text-zinc-300">
+                  Swipe up/down to resize
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSheetSnap((s) => (s === "hidden" ? "half" : "hidden"))
+                  }
+                  className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/10"
+                >
+                  {sheetSnap === "hidden" ? "Show" : "Hide"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onDownload}
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-4 pb-5">
+            <div className="rounded-3xl border border-white/10 bg-black/30 p-4">
+              <div className="flex items-center justify-center">
+                <div
+                  ref={mountMobileRef}
+                  className={clsx(
+                    "grid w-full place-items-center overflow-hidden rounded-2xl [&>canvas]:h-auto [&>canvas]:w-full [&>svg]:h-auto [&>svg]:w-full",
+                    sheetSnap === "mini" && "max-w-[180px]",
+                    sheetSnap === "half" && "max-w-[260px]",
+                    sheetSnap === "full" && "max-w-[360px]",
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={() => setShowDownloadOptions((v) => !v)}
+                className="inline-flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-zinc-200 hover:bg-white/10"
+              >
+                Download options
+                <span className="text-zinc-400">
+                  {showDownloadOptions ? "Hide" : "Show"}
+                </span>
+              </button>
+
+              {showDownloadOptions && (
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  <div>
+                    <label
+                      htmlFor={dlNameId}
+                      className="mb-2 block text-sm font-medium text-zinc-200"
+                    >
+                      File name
+                    </label>
+                    <input
+                      id={dlNameId}
+                      value={downloadName}
+                      onChange={(e) => setDownloadName(e.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor={dlExtId}
+                      className="mb-2 block text-sm font-medium text-zinc-200"
+                    >
+                      Format
+                    </label>
+                    <SelectField
+                      id={dlExtId}
+                      value={downloadExt}
+                      onChange={(e) =>
+                        setDownloadExt(e.target.value as FileExtension)
+                      }
+                    >
+                      <option value="png">PNG</option>
+                      <option value="jpeg">JPEG</option>
+                      <option value="webp">WEBP</option>
+                      <option value="svg">SVG</option>
+                    </SelectField>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
