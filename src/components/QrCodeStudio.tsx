@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import QRCodeStyling, {
   CornerDotType,
   CornerSquareType,
@@ -13,6 +13,16 @@ import QRCodeStyling, {
 } from "qr-code-styling";
 import { Download, ImageUp, Link2, RefreshCcw, Trash2 } from "lucide-react";
 import clsx from "clsx";
+
+const QUIET_ZONE_PRESETS = [
+  { label: "None (0px)", value: 0 },
+  { label: "Tight (8px)", value: 8 },
+  { label: "Normal (12px)", value: 12 },
+  { label: "Roomy (16px)", value: 16 },
+  { label: "XL (24px)", value: 24 },
+  { label: "2XL (32px)", value: 32 },
+  { label: "Max (40px)", value: 40 },
+] as const;
 
 type GradientState = {
   enabled: boolean;
@@ -60,8 +70,39 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
-function labelId(prefix: string) {
-  return `${prefix}-${Math.random().toString(16).slice(2)}`;
+function SelectChevron() {
+  return (
+    <svg
+      className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-300/80"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.25a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className="relative">
+      <select
+        {...props}
+        className={clsx(
+          "w-full appearance-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 pr-10 text-sm text-white",
+          "shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset]",
+          "focus:outline-none focus:ring-2 focus:ring-emerald-400/40",
+          "disabled:cursor-not-allowed disabled:opacity-60",
+          props.className,
+        )}
+      />
+      <SelectChevron />
+    </div>
+  );
 }
 
 export function QrCodeStudio() {
@@ -99,6 +140,7 @@ export function QrCodeStudio() {
 
   const [downloadName, setDownloadName] = useState("qr-code-for-everyone");
   const [downloadExt, setDownloadExt] = useState<FileExtension>("png");
+  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
   const options: Options = useMemo(() => {
     const drawType: DrawType = "canvas";
@@ -136,15 +178,13 @@ export function QrCodeStudio() {
         type: cornerDotType,
         color: gradient.enabled ? gradient.color2 : fgColor,
       },
-      ...(logo.enabled && logo.dataUrl
-        ? {
-            image: logo.dataUrl,
-            imageOptions: {
-              ...(logo.crossOrigin ? { crossOrigin: logo.crossOrigin } : {}),
-              margin: clamp(logo.margin, 0, 40),
-            },
-          }
-        : {}),
+      image: logo.enabled && logo.dataUrl ? logo.dataUrl : undefined,
+      // qr-code-styling reads imageOptions fields even when image is unset
+      imageOptions: {
+        hideBackgroundDots: true,
+        margin: clamp(logo.margin, 0, 40),
+        ...(logo.crossOrigin ? { crossOrigin: logo.crossOrigin } : {}),
+      },
     };
   }, [
     data,
@@ -197,7 +237,12 @@ export function QrCodeStudio() {
   };
 
   const onClearLogo = () => {
-    setLogo((l) => ({ ...l, enabled: false, dataUrl: null }));
+    setLogo({
+      enabled: false,
+      dataUrl: null,
+      margin: 10,
+      crossOrigin: "anonymous",
+    });
   };
 
   const onDownload = async () => {
@@ -209,25 +254,26 @@ export function QrCodeStudio() {
     });
   };
 
-  const headerLinkId = useMemo(() => labelId("data"), []);
-  const sizeId = useMemo(() => labelId("size"), []);
-  const marginId = useMemo(() => labelId("margin"), []);
-  const ecId = useMemo(() => labelId("ec"), []);
-  const dotId = useMemo(() => labelId("dot"), []);
-  const cornerSqId = useMemo(() => labelId("cornerSq"), []);
-  const cornerDotId = useMemo(() => labelId("cornerDot"), []);
-  const fgId = useMemo(() => labelId("fg"), []);
-  const bgId = useMemo(() => labelId("bg"), []);
-  const gradEnabledId = useMemo(() => labelId("gradEnabled"), []);
-  const gradTypeId = useMemo(() => labelId("gradType"), []);
-  const gradRotId = useMemo(() => labelId("gradRot"), []);
-  const gradC1Id = useMemo(() => labelId("gradC1"), []);
-  const gradC2Id = useMemo(() => labelId("gradC2"), []);
-  const logoEnabledId = useMemo(() => labelId("logoEnabled"), []);
-  const logoMarginId = useMemo(() => labelId("logoMargin"), []);
-  const crossOriginId = useMemo(() => labelId("crossOrigin"), []);
-  const dlNameId = useMemo(() => labelId("dlName"), []);
-  const dlExtId = useMemo(() => labelId("dlExt"), []);
+  const headerLinkId = useId();
+  const sizeId = useId();
+  const marginId = useId();
+  const marginCustomId = useId();
+  const ecId = useId();
+  const dotId = useId();
+  const cornerSqId = useId();
+  const cornerDotId = useId();
+  const fgId = useId();
+  const bgId = useId();
+  const gradEnabledId = useId();
+  const gradTypeId = useId();
+  const gradRotId = useId();
+  const gradC1Id = useId();
+  const gradC2Id = useId();
+  const logoEnabledId = useId();
+  const logoMarginId = useId();
+  const crossOriginId = useId();
+  const dlNameId = useId();
+  const dlExtId = useId();
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6">
@@ -245,8 +291,8 @@ export function QrCodeStudio() {
         </h1>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_.9fr]">
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur lg:p-6">
+      <div className="grid h-[100svh] grid-cols-1 gap-0 overflow-hidden lg:h-auto lg:grid-cols-[1.1fr_.9fr] lg:gap-6 lg:overflow-visible">
+        <section className="h-[54svh] overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur lg:h-auto lg:p-6">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-white">Design</h2>
             <button
@@ -262,6 +308,7 @@ export function QrCodeStudio() {
                 setSize(320);
                 setMargin(12);
                 setEcLevel("M");
+                onClearLogo();
               }}
               className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-200 hover:bg-white/10"
             >
@@ -315,18 +362,49 @@ export function QrCodeStudio() {
                 htmlFor={marginId}
                 className="mb-2 block text-sm font-medium text-zinc-200"
               >
-                Quiet zone ({margin}px)
+                Quiet zone
               </label>
-              <input
+              <SelectField
                 id={marginId}
-                type="range"
-                min={0}
-                max={40}
-                step={1}
-                value={margin}
-                onChange={(e) => setMargin(Number(e.target.value))}
-                className="w-full accent-emerald-400"
-              />
+                value={
+                  QUIET_ZONE_PRESETS.some((p) => p.value === margin)
+                    ? String(margin)
+                    : "custom"
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "custom") return;
+                  setMargin(Number(v));
+                }}
+              >
+                {QUIET_ZONE_PRESETS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+                <option value="custom">Custom…</option>
+              </SelectField>
+
+              {!QUIET_ZONE_PRESETS.some((p) => p.value === margin) && (
+                <div className="mt-3">
+                  <label
+                    htmlFor={marginCustomId}
+                    className="mb-2 block text-xs font-medium text-zinc-300"
+                  >
+                    Custom quiet zone ({margin}px)
+                  </label>
+                  <input
+                    id={marginCustomId}
+                    type="range"
+                    min={0}
+                    max={40}
+                    step={1}
+                    value={margin}
+                    onChange={(e) => setMargin(Number(e.target.value))}
+                    className="w-full accent-emerald-400"
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -336,20 +414,19 @@ export function QrCodeStudio() {
               >
                 Error correction
               </label>
-              <select
+              <SelectField
                 id={ecId}
                 value={ecLevel}
                 onChange={(e) =>
                   setEcLevel(e.target.value as ErrorCorrectionLevel)
                 }
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
               >
                 {ERROR_LEVELS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
 
             <div>
@@ -359,18 +436,17 @@ export function QrCodeStudio() {
               >
                 Dots
               </label>
-              <select
+              <SelectField
                 id={dotId}
                 value={dotType}
                 onChange={(e) => setDotType(e.target.value as DotType)}
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
               >
                 {DOT_TYPES.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
 
             <div>
@@ -380,20 +456,19 @@ export function QrCodeStudio() {
               >
                 Corner squares
               </label>
-              <select
+              <SelectField
                 id={cornerSqId}
                 value={cornerSquareType}
                 onChange={(e) =>
                   setCornerSquareType(e.target.value as CornerSquareType)
                 }
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
               >
                 {CORNER_SQUARE_TYPES.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
 
             <div>
@@ -403,20 +478,19 @@ export function QrCodeStudio() {
               >
                 Corner dots
               </label>
-              <select
+              <SelectField
                 id={cornerDotId}
                 value={cornerDotType}
                 onChange={(e) =>
                   setCornerDotType(e.target.value as CornerDotType)
                 }
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
               >
                 {CORNER_DOT_TYPES.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
 
             <div className="md:col-span-2 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -518,7 +592,7 @@ export function QrCodeStudio() {
                   >
                     Type
                   </label>
-                  <select
+                  <SelectField
                     id={gradTypeId}
                     value={gradient.type}
                     onChange={(e) =>
@@ -528,11 +602,10 @@ export function QrCodeStudio() {
                       }))
                     }
                     disabled={!gradient.enabled}
-                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40 disabled:cursor-not-allowed"
                   >
                     <option value="linear">Linear</option>
                     <option value="radial">Radial</option>
-                  </select>
+                  </SelectField>
                 </div>
 
                 <div className="md:col-span-2">
@@ -701,7 +774,7 @@ export function QrCodeStudio() {
                   >
                     Cross origin
                   </label>
-                  <select
+                  <SelectField
                     id={crossOriginId}
                     value={logo.crossOrigin ?? "anonymous"}
                     onChange={(e) =>
@@ -714,12 +787,11 @@ export function QrCodeStudio() {
                       }))
                     }
                     disabled={!logo.enabled}
-                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40 disabled:cursor-not-allowed"
                   >
                     <option value="anonymous">anonymous</option>
                     <option value="use-credentials">use-credentials</option>
                     <option value="unset">unset</option>
-                  </select>
+                  </SelectField>
                   <p className="mt-2 text-xs text-zinc-400">
                     For uploaded logos, <span className="text-zinc-300">anonymous</span> is usually best.
                   </p>
@@ -729,69 +801,100 @@ export function QrCodeStudio() {
           </div>
         </section>
 
-        <aside className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur lg:p-6">
+        <aside className="relative h-[46svh] overflow-hidden rounded-t-3xl border border-white/10 bg-white/5 p-4 shadow-[0_-1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur lg:static lg:h-auto lg:overflow-visible lg:rounded-3xl lg:p-6 lg:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset]">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-white">Preview</h2>
-            <button
-              type="button"
-              onClick={onDownload}
-              className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300"
-            >
-              <Download className="h-4 w-4" />
-              Download
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDownloadOptions((v) => !v)}
+                className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/10 lg:inline-flex"
+              >
+                Options
+              </button>
+              <button
+                type="button"
+                onClick={onDownload}
+                className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </button>
+            </div>
           </div>
 
-          <div className="mt-5 rounded-3xl border border-white/10 bg-black/30 p-5">
+          <div className="mt-4 rounded-3xl border border-white/10 bg-black/30 p-4 lg:mt-5 lg:p-5">
             <div className="flex items-center justify-center">
               <div
                 ref={mountRef}
-                className="grid place-items-center overflow-hidden rounded-2xl"
+                className="grid w-full max-w-[260px] place-items-center overflow-hidden rounded-2xl [&>canvas]:h-auto [&>canvas]:w-full [&>svg]:h-auto [&>svg]:w-full sm:max-w-[320px] lg:max-w-none"
               />
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4">
-            <div>
-              <label
-                htmlFor={dlNameId}
-                className="mb-2 block text-sm font-medium text-zinc-200"
-              >
-                File name
-              </label>
-              <input
-                id={dlNameId}
-                value={downloadName}
-                onChange={(e) => setDownloadName(e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-              />
-            </div>
+          <div className="mt-3 lg:mt-5">
+            <button
+              type="button"
+              onClick={() => setShowDownloadOptions((v) => !v)}
+              className="inline-flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-zinc-200 hover:bg-white/10 lg:hidden"
+            >
+              Download options
+              <span className="text-zinc-400">
+                {showDownloadOptions ? "Hide" : "Show"}
+              </span>
+            </button>
 
-            <div>
-              <label
-                htmlFor={dlExtId}
-                className="mb-2 block text-sm font-medium text-zinc-200"
-              >
-                Format
-              </label>
-              <select
-                id={dlExtId}
-                value={downloadExt}
-                onChange={(e) => setDownloadExt(e.target.value as FileExtension)}
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-              >
-                <option value="png">PNG</option>
-                <option value="jpeg">JPEG</option>
-                <option value="webp">WEBP</option>
-                <option value="svg">SVG</option>
-              </select>
-              <p className="mt-2 text-xs text-zinc-400">
-                If you need print-quality vectors, choose <span className="text-zinc-300">SVG</span>.
-              </p>
+            <div
+              className={clsx(
+                "mt-3 grid grid-cols-1 gap-3",
+                !showDownloadOptions && "hidden lg:grid",
+              )}
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor={dlNameId}
+                    className="mb-2 block text-sm font-medium text-zinc-200"
+                  >
+                    File name
+                  </label>
+                  <input
+                    id={dlNameId}
+                    value={downloadName}
+                    onChange={(e) => setDownloadName(e.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor={dlExtId}
+                    className="mb-2 block text-sm font-medium text-zinc-200"
+                  >
+                    Format
+                  </label>
+                  <SelectField
+                    id={dlExtId}
+                    value={downloadExt}
+                    onChange={(e) =>
+                      setDownloadExt(e.target.value as FileExtension)
+                    }
+                  >
+                    <option value="png">PNG</option>
+                    <option value="jpeg">JPEG</option>
+                    <option value="webp">WEBP</option>
+                    <option value="svg">SVG</option>
+                  </SelectField>
+                  <p className="mt-2 text-xs text-zinc-400">
+                    For print-quality vectors, choose{" "}
+                    <span className="text-zinc-300">SVG</span>.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="mt-6 hidden rounded-2xl border border-white/10 bg-black/20 p-4 lg:block">
             <h3 className="text-sm font-semibold text-white">Good scanning tips</h3>
             <ul className="mt-3 space-y-2 text-sm text-zinc-300">
               <li>Keep strong contrast between foreground and background.</li>
