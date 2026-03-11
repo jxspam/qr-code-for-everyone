@@ -152,6 +152,11 @@ export function QrCodeStudio() {
     active: boolean;
     moved: boolean;
   } | null>(null);
+  const touchDragRef = useRef<{ startY: number; startOffset: number } | null>(
+    null,
+  );
+  const sheetHandleRef = useRef<HTMLDivElement | null>(null);
+  const lastSheetOffsetRef = useRef<number>(0);
 
   const getSheetMetrics = () => {
     const vh =
@@ -186,6 +191,27 @@ export function QrCodeStudio() {
     return () => window.removeEventListener("resize", apply);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetSnap]);
+
+  // Non-passive touch listener so we can preventDefault and drag on phones
+  useEffect(() => {
+    const el = sheetHandleRef.current;
+    if (!el) return;
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1 || !touchDragRef.current) return;
+      e.preventDefault();
+      const dy = e.touches[0]!.clientY - touchDragRef.current.startY;
+      const m = getSheetMetrics();
+      const next = clamp(
+        touchDragRef.current.startOffset + dy,
+        0,
+        m.vh - m.handle,
+      );
+      lastSheetOffsetRef.current = next;
+      setSheetOffset(next);
+    };
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onTouchMove);
+  });
 
   const commitSnapFromOffset = (offset: number) => {
     const m = getSheetMetrics();
@@ -988,9 +1014,11 @@ export function QrCodeStudio() {
           }}
         >
           <div
-            className="px-4 pt-3"
+            ref={sheetHandleRef}
+            className="touch-none select-none px-4 pt-3"
+            style={{ touchAction: "none" }}
             onPointerDown={(e) => {
-              (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+              e.currentTarget.setPointerCapture(e.pointerId);
               dragRef.current = {
                 startY: e.clientY,
                 startOffset: sheetOffset,
@@ -1014,16 +1042,30 @@ export function QrCodeStudio() {
               const d = dragRef.current;
               dragRef.current = d ? { ...d, active: false } : null;
               commitSnapFromOffset(sheetOffset);
-              (e.currentTarget as HTMLDivElement).releasePointerCapture(
-                e.pointerId,
-              );
+              e.currentTarget.releasePointerCapture(e.pointerId);
             }}
             onPointerCancel={(e) => {
               dragRef.current = null;
               commitSnapFromOffset(sheetOffset);
-              (e.currentTarget as HTMLDivElement).releasePointerCapture(
-                e.pointerId,
-              );
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            }}
+            onTouchStart={(e) => {
+              if (e.touches.length !== 1) return;
+              touchDragRef.current = {
+                startY: e.touches[0]!.clientY,
+                startOffset: sheetOffset,
+              };
+              lastSheetOffsetRef.current = sheetOffset;
+            }}
+            onTouchEnd={() => {
+              if (touchDragRef.current) {
+                commitSnapFromOffset(lastSheetOffsetRef.current);
+                touchDragRef.current = null;
+              }
+            }}
+            onTouchCancel={() => {
+              touchDragRef.current = null;
+              commitSnapFromOffset(lastSheetOffsetRef.current);
             }}
           >
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
@@ -1038,11 +1080,11 @@ export function QrCodeStudio() {
                 <button
                   type="button"
                   onClick={() =>
-                    setSheetSnap((s) => (s === "mini" ? "half" : "mini"))
+                    setSheetSnap((s) => (s === "full" ? "mini" : "full"))
                   }
                   className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/10"
                 >
-                  {sheetSnap === "mini" ? "Expand" : "Collapse"}
+                  {sheetSnap === "full" ? "Hide" : "Show"}
                 </button>
                 <button
                   type="button"
@@ -1056,12 +1098,24 @@ export function QrCodeStudio() {
             </div>
           </div>
 
-          <div className="px-4 pb-5">
-            <div
-              className="rounded-3xl border border-white/10 bg-black/30 p-4"
-              onClick={() => setSheetSnap("full")}
-            >
-              <div className="flex items-center justify-center">
+          <div className="relative px-4 pb-5">
+            <div className="relative rounded-3xl border border-white/10 bg-black/30 p-4">
+              {/* Tap overlay: tap anywhere on preview to expand to full */}
+              <button
+                type="button"
+                className="absolute inset-0 z-10 rounded-3xl cursor-default focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-inset"
+                aria-label="Expand preview to full"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSheetSnap("full");
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  setSheetSnap("full");
+                }}
+              />
+              <div className="relative z-0 flex items-center justify-center pointer-events-none [&_canvas]:pointer-events-auto [&_svg]:pointer-events-auto">
                 <div
                   ref={mountMobileRef}
                   className={clsx(
