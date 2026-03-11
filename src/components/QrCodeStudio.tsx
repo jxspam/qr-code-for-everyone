@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import QRCodeStyling, {
   CornerDotType,
   CornerSquareType,
@@ -143,6 +144,15 @@ export function QrCodeStudio() {
   const [downloadName, setDownloadName] = useState("qr-code-for-everyone");
   const [downloadExt, setDownloadExt] = useState<FileExtension>("png");
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(true);
+
+  useEffect(() => {
+    const m = window.matchMedia("(max-width: 1023px)");
+    setIsMobileView(m.matches);
+    const on = () => setIsMobileView(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
 
   type SheetSnap = "mini" | "half" | "full";
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("half");
@@ -1004,15 +1014,19 @@ export function QrCodeStudio() {
         </aside>
       </div>
 
-      {/* Mobile bottom sheet preview */}
-      <div className="lg:hidden">
-        <div
-          className="fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border border-white/10 bg-white/5 shadow-[0_-1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur"
-          style={{
-            transform: `translateY(${sheetOffset}px)`,
-            transition: dragRef.current?.active ? "none" : "transform 220ms ease",
-          }}
-        >
+      {/* Mobile bottom sheet preview: portal to body so it stays viewport-fixed when outer page scrolls */}
+      {typeof document !== "undefined" &&
+        isMobileView &&
+        createPortal(
+          <div
+            className="fixed inset-x-0 bottom-0 z-[9999] rounded-t-3xl border border-white/10 bg-white/5 shadow-[0_-1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur"
+            style={{
+              transform: `translateY(${sheetOffset}px)`,
+              transition: dragRef.current?.active
+                ? "none"
+                : "transform 220ms ease",
+            }}
+          >
           <div
             ref={sheetHandleRef}
             className="touch-none select-none px-4 pt-3"
@@ -1181,8 +1195,9 @@ export function QrCodeStudio() {
               )}
             </div>
           </div>
-        </div>
-      </div>
+        </div>,
+          document.body,
+        )}
     </div>
   );
 }
