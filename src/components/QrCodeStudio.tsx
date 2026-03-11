@@ -169,10 +169,10 @@ export function QrCodeStudio() {
   const lastSheetOffsetRef = useRef<number>(0);
 
   const getSheetMetrics = () => {
+    if (typeof window === "undefined")
+      return { vh: 400, handle: 56, miniH: 200, halfH: 192, fullH: 368 };
     const vh =
-      typeof window !== "undefined" && window.innerHeight
-        ? window.innerHeight
-        : studioRef.current?.getBoundingClientRect().height ?? 0;
+      window.visualViewport?.height ?? window.innerHeight ?? 400;
     const handle = 56; // px visible when hidden
     const miniH = Math.round(vh * 0.5);
     const halfH = Math.round(vh * 0.48);
@@ -194,11 +194,21 @@ export function QrCodeStudio() {
   const [sheetOffset, setSheetOffset] = useState<number>(0);
 
   useEffect(() => {
-    // set initial offset + keep in sync on resize/orientation
     const apply = () => setSheetOffset(snapToOffset(sheetSnap));
     apply();
     window.addEventListener("resize", apply);
-    return () => window.removeEventListener("resize", apply);
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", apply);
+      vv.addEventListener("scroll", apply);
+    }
+    return () => {
+      window.removeEventListener("resize", apply);
+      if (vv) {
+        vv.removeEventListener("resize", apply);
+        vv.removeEventListener("scroll", apply);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetSnap]);
 
@@ -1014,22 +1024,32 @@ export function QrCodeStudio() {
         </aside>
       </div>
 
-      {/* Mobile bottom sheet preview: portal to body so it stays viewport-fixed when outer page scrolls */}
-      {typeof document !== "undefined" &&
-        isMobileView &&
-        createPortal(
+      {/* Mobile bottom sheet: portal to body, viewport-anchored (outer screen), header always visible */}
+      {typeof document !== "undefined" && isMobileView && (() => {
+        const sheet = (
+          <>
           <div
-            className="fixed inset-x-0 bottom-0 z-[9999] rounded-t-3xl border border-white/10 bg-white/5 shadow-[0_-1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur"
-            style={{
-              transform: `translateY(${sheetOffset}px)`,
-              transition: dragRef.current?.active
-                ? "none"
-                : "transform 220ms ease",
-            }}
+            className="fixed inset-0 z-[9999] pointer-events-none"
+            style={{ top: "auto", height: "100vh" }}
+            aria-hidden
           >
+            <div
+              className="pointer-events-auto rounded-t-3xl border border-white/10 bg-white/5 shadow-[0_-1px_0_0_rgba(255,255,255,0.06)_inset] backdrop-blur flex flex-col"
+              style={{
+                position: "fixed",
+                left: 0,
+                right: 0,
+                bottom: 0,
+                maxHeight: "92vh",
+                transform: `translateY(${sheetOffset}px)`,
+                transition: dragRef.current?.active
+                  ? "none"
+                  : "transform 220ms ease",
+              }}
+            >
           <div
             ref={sheetHandleRef}
-            className="touch-none select-none px-4 pt-3"
+            className="touch-none select-none shrink-0 px-4 pt-3"
             style={{ touchAction: "none" }}
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId);
@@ -1112,7 +1132,7 @@ export function QrCodeStudio() {
             </div>
           </div>
 
-          <div className="relative px-4 pb-5">
+          <div className="relative flex-1 min-h-0 overflow-y-auto px-4 pb-5">
             <div className="relative rounded-3xl border border-white/10 bg-black/30 p-4">
               {/* Tap overlay: tap anywhere on preview to expand to full */}
               <button
@@ -1142,62 +1162,51 @@ export function QrCodeStudio() {
               </div>
             </div>
 
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={() => setShowDownloadOptions((v) => !v)}
-                className="inline-flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-zinc-200 hover:bg-white/10"
-              >
-                Download options
-                <span className="text-zinc-400">
-                  {showDownloadOptions ? "Hide" : "Show"}
-                </span>
-              </button>
+            {/* Download fields always visible; scroll with sheet content (no show/hide toggle) */}
+            <div className="mt-3 grid grid-cols-1 gap-3 pb-2">
+              <div>
+                <label
+                  htmlFor={dlNameId}
+                  className="mb-2 block text-sm font-medium text-zinc-200"
+                >
+                  File name
+                </label>
+                <input
+                  id={dlNameId}
+                  value={downloadName}
+                  onChange={(e) => setDownloadName(e.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                />
+              </div>
 
-              {showDownloadOptions && (
-                <div className="mt-3 grid grid-cols-1 gap-3">
-                  <div>
-                    <label
-                      htmlFor={dlNameId}
-                      className="mb-2 block text-sm font-medium text-zinc-200"
-                    >
-                      File name
-                    </label>
-                    <input
-                      id={dlNameId}
-                      value={downloadName}
-                      onChange={(e) => setDownloadName(e.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor={dlExtId}
-                      className="mb-2 block text-sm font-medium text-zinc-200"
-                    >
-                      Format
-                    </label>
-                    <SelectField
-                      id={dlExtId}
-                      value={downloadExt}
-                      onChange={(e) =>
-                        setDownloadExt(e.target.value as FileExtension)
-                      }
-                    >
-                      <option value="png">PNG</option>
-                      <option value="jpeg">JPEG</option>
-                      <option value="webp">WEBP</option>
-                      <option value="svg">SVG</option>
-                    </SelectField>
-                  </div>
-                </div>
-              )}
+              <div>
+                <label
+                  htmlFor={dlExtId}
+                  className="mb-2 block text-sm font-medium text-zinc-200"
+                >
+                  Format
+                </label>
+                <SelectField
+                  id={dlExtId}
+                  value={downloadExt}
+                  onChange={(e) =>
+                    setDownloadExt(e.target.value as FileExtension)
+                  }
+                >
+                  <option value="png">PNG</option>
+                  <option value="jpeg">JPEG</option>
+                  <option value="webp">WEBP</option>
+                  <option value="svg">SVG</option>
+                </SelectField>
+              </div>
             </div>
           </div>
-        </div>,
-          document.body,
-        )}
+            </div>
+          </div>
+          </>
+        );
+        return createPortal(sheet, document.body);
+      })()}
     </div>
   );
 }
