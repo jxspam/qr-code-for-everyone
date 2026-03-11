@@ -154,10 +154,12 @@ export function QrCodeStudio() {
   } | null>(null);
 
   const getSheetMetrics = () => {
-    const root = studioRef.current;
-    const vh = root ? root.getBoundingClientRect().height : window.innerHeight;
+    const vh =
+      typeof window !== "undefined" && window.innerHeight
+        ? window.innerHeight
+        : studioRef.current?.getBoundingClientRect().height ?? 0;
     const handle = 56; // px visible when hidden
-    const miniH = Math.round(vh * 0.15);
+    const miniH = Math.round(vh * 0.5);
     const halfH = Math.round(vh * 0.48);
     const fullH = Math.round(vh * 0.92);
     return { vh, handle, miniH, halfH, fullH };
