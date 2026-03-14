@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -29,6 +30,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <Script
+          src="https://www.useinflect.ai/inflect-tracking.js"
+          strategy="afterInteractive"
+          data-tracking-key="inf_lzjzFvYfEkHjKMeugr4zz5aleJGLXcBa"
+        />
       </body>
     </html>
   );
