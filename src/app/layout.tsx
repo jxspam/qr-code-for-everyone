@@ -26,15 +26,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <head>
         <Script
           src="https://www.useinflect.ai/inflect-tracking.js"
           strategy="afterInteractive"
           data-tracking-key="inf_lzjzFvYfEkHjKMeugr4zz5aleJGLXcBa"
         />
+      </head>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        {children}
       </body>
     </html>
   );
